@@ -1,0 +1,140 @@
+{
+	"compiler": {
+		"version": "0.8.20+commit.a1b79de6"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256[]",
+						"name": "",
+						"type": "uint256[]"
+					},
+					{
+						"internalType": "uint256[]",
+						"name": "",
+						"type": "uint256[]"
+					},
+					{
+						"internalType": "uint256[]",
+						"name": "",
+						"type": "uint256[]"
+					},
+					{
+						"internalType": "bytes",
+						"name": "data",
+						"type": "bytes"
+					}
+				],
+				"name": "onDLTBatchReceived",
+				"outputs": [
+					{
+						"internalType": "bytes4",
+						"name": "",
+						"type": "bytes4"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "operator",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "from",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "mainId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "subId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bytes",
+						"name": "data",
+						"type": "bytes"
+					}
+				],
+				"name": "onDLTReceived",
+				"outputs": [
+					{
+						"internalType": "bytes4",
+						"name": "",
+						"type": "bytes4"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"details": "Interface for any contract that wants to support safeTransfers from DLT asset contracts.",
+			"kind": "dev",
+			"methods": {
+				"onDLTReceived(address,address,uint256,uint256,uint256,bytes)": {
+					"details": "Whenever an {DLT} `subId` token is transferred to this contract via {IDLT-safeTransferFrom} by `operator` from `sender`, this function is called. It must return its Solidity selector to confirm the token transfer. If any other value is returned or the interface is not implemented by the recipient,  the transfer will be reverted. The selector can be obtained in Solidity with `IDLTReceiver.onDLTReceived.selector`."
+				}
+			},
+			"title": "DLT token receiver interface",
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"contracts/DLTUpgradeable/interfaces/IDLTReceiverUpgradeable.sol": "IDLTReceiverUpgradeable"
+		},
+		"evmVersion": "shanghai",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"contracts/DLTUpgradeable/interfaces/IDLTReceiverUpgradeable.sol": {
+			"keccak256": "0x7b8d70b779741d9f11861411afb6603993661ee95e6b3ecc7fd95aff5ea5f819",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://b6b3322779f2b276b464798c764f132f610040a73f0c00393ac878e534c112a7",
+				"dweb:/ipfs/QmS8uovS8yJXmutZZ1qEH5m4Gn5dW4RAhViSGyJfurfih6"
+			]
+		}
+	},
+	"version": 1
+}
