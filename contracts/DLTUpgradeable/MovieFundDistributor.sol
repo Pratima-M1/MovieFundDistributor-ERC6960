@@ -58,10 +58,16 @@ contract MovieFundDistributor is
     mapping(address => mapping(address => mapping(uint256 => mapping(uint256 => uint256))))
         private _allowances;
     mapping(uint256 => mapping(address => bool)) public movieExists;
+    mapping(uint256 => mapping(uint256 => mapping(address => bool)))
+        public departmentExists;
 
+
+    event MovieAdded(uint256 currentIndex,string movieName);
+    event DepartmentAdded(uint256 movieId, uint256 departmentId);
     event DepartmentRemoved(uint256 movieId, uint256 departmentId);
     event MovieRemoved(uint256 movieId);
     event MaintainceDistributed(uint256 movieId, uint256 budget);
+    event FundTransferred(address from,address to,uint256 fromDepartmentId,uint256 toDepartmentId);
 
     modifier onlyProducer(uint256 movieId) {
         require(msg.sender == movies[movieId].producer, "Only Producer");
@@ -643,7 +649,7 @@ contract MovieFundDistributor is
         mintMainId(movieProducer, currentIndex, 0, movieName, 0, "");
         movieExists[currentIndex][movieProducer] = true;
         currentIndex++;
-         emit MovieRemoved(currentIndex);
+         emit MovieAdded(currentIndex,movieName);
     }
 
     function addDepartment(
@@ -669,6 +675,7 @@ contract MovieFundDistributor is
         departmentExists[movieId][currentIndex][departmentManager] = true;
         currentIndex++;
         movies[movieId].totalDepartments++;
+        emit DepartmentAdded( movieId, currentIndex);
     }
 
     function fundMovie(uint256 movieId, uint256 fund)
@@ -679,8 +686,6 @@ contract MovieFundDistributor is
         _balances[movieId][msg.sender][0] += fund;
     }
 
-    mapping(uint256 => mapping(uint256 => mapping(address => bool)))
-        public departmentExists;
 
     function PayMaintainance(
         uint256 movieId,
@@ -717,6 +722,7 @@ contract MovieFundDistributor is
         );
         _balances[movieId][from][fromDepartmentId] -= transferValue;
         _balances[movieId][to][toDepartmentId] += transferValue;
+        emit FundTransferred(from,to,fromDepartmentId,toDepartmentId);
     }
 
     function removeDepartment(
@@ -749,6 +755,7 @@ contract MovieFundDistributor is
         );
         delete [movieId][0];
         delete movieExists[movieId][_producer];
+         emit MovieRemoved(movieId);
     }
 
     //Allfunction included above section rest of the code remains same as given in 6960
