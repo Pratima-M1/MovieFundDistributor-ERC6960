@@ -61,7 +61,7 @@ contract MovieFundDistributor is
 
     event DepartmentRemoved(uint256 movieId, uint256 departmentId);
     event MovieRemoved(uint256 movieId);
-    event BudgetDistributed(uint256 movieId, uint256 budget);
+    event MaintainceDistributed(uint256 movieId, uint256 budget);
 
     modifier onlyProducer(uint256 movieId) {
         require(msg.sender == movies[movieId].producer, "Only Producer");
@@ -643,6 +643,7 @@ contract MovieFundDistributor is
         mintMainId(movieProducer, currentIndex, 0, movieName, 0, "");
         movieExists[currentIndex][movieProducer] = true;
         currentIndex++;
+         emit MovieRemoved(currentIndex);
     }
 
     function addDepartment(
@@ -667,7 +668,6 @@ contract MovieFundDistributor is
         );
         departmentExists[movieId][currentIndex][departmentManager] = true;
         currentIndex++;
-
         movies[movieId].totalDepartments++;
     }
 
@@ -695,6 +695,7 @@ contract MovieFundDistributor is
         );
         _balances[movieId][depAddress][departmentId] += maintainance;
         _balances[movieId][msg.sender][0] -= maintainance;
+        emit MaintainceDistributed(movieId, maintainance);
     }
 
     function transferBalance(
@@ -734,6 +735,7 @@ contract MovieFundDistributor is
         delete departmentExists[movieId][departmentId][_departmentManager];
         delete departments[movieId][departmentId];
         movies[movieId].totalDepartments--;
+        emit DepartmentRemoved(movieId,departmentId);
     }
 
     function removeMovie(uint256 movieId, address _producer)
