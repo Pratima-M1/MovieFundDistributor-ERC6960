@@ -1,60 +1,53 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { Context } from "@openzeppelin/contracts/utils/Context.sol";
-import { IDLTUpgradeable } from "./interfaces/IDLTUpgradeable.sol";
-import { IDLTReceiverUpgradeable } from "./interfaces/IDLTReceiverUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {Context} from "@openzeppelin/contracts/utils/Context.sol";
+import {IDLTUpgradeable} from "./interfaces/IDLTUpgradeable.sol";
+import {IDLTReceiverUpgradeable} from "./interfaces/IDLTReceiverUpgradeable.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Receiver.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Enumerable.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
 
-contract MovieFundDistributor is Initializable, Context, IDLTUpgradeable,ERC721,ERC721URIStorage {
-    struct Movie{
+contract MovieFundDistributor is
+    Initializable,
+    Context,
+    IDLTUpgradeable,
+    ERC721,
+    ERC721URIStorage
+{
+    //structs
+    struct Movie {
         address producer;
-    uint256 movieId;
-    string movieName;
-    uint256 totalDepartments;
-}
+        uint256 movieId;
+        string movieName;
+        uint256 totalDepartments;
+    }
 
-struct Departments{
-    address departmentManager;
-    uint256 movieId;
-    uint256 departmentId;
-    string departmentName;
-    uint256 budget;
-}
+    struct Departments {
+        address departmentManager;
+        uint256 movieId;
+        uint256 departmentId;
+        string departmentName;
+        uint256 budget;
+    }
 
-
-
-      using Strings for address;
+    using Strings for address;
     using Strings for uint256;
 
     string private _name;
     string private _symbol;
+    uint256 currentIndex = 1;
 
-//uint256 movieIdcounter=1;
-//uint256 departmentIdcounter=1;
-//uint256 employeeIdCounter=1;
-mapping(uint256=>Movie) public movies;
-mapping(uint256=>mapping(uint256=>Departments))public departments;
-//mapping(uint256=>uint256)public departmentCount;
- 
- uint256 currentIndex=1;
-mapping(uint256=>mapping(address=>bool))public movieExists;
-event DepartmentRemoved(uint256 movieId,uint256 departmentId);
- event MovieRemoved(uint256 movieId);
-
-mapping(uint256=>string)_tokenURIs;
+    mapping(uint256 => Movie) public movies;
+    mapping(uint256 => mapping(uint256 => Departments)) public departments;
+    mapping(uint256 => string) _tokenURIs;
 
     // Balances
     mapping(uint256 => mapping(address => mapping(uint256 => uint256)))
@@ -64,42 +57,51 @@ mapping(uint256=>string)_tokenURIs;
 
     mapping(address => mapping(address => mapping(uint256 => mapping(uint256 => uint256))))
         private _allowances;
+    mapping(uint256 => mapping(address => bool)) public movieExists;
 
- event BudgetDistributed(uint256 movieId,uint256 budget);
+    event DepartmentRemoved(uint256 movieId, uint256 departmentId);
+    event MovieRemoved(uint256 movieId);
+    event BudgetDistributed(uint256 movieId, uint256 budget);
 
- modifier onlyProducer(uint256 movieId){
-     require(msg.sender==movies[movieId].producer,"Only Producer");
-     _;
-}
- constructor() ERC721("Dual Layer Token", "DLT") {}
+    modifier onlyProducer(uint256 movieId) {
+        require(msg.sender == movies[movieId].producer, "Only Producer");
+        _;
+    }
+
+    constructor() ERC721("Dual Layer Token", "DLT") {}
 
     // solhint-disable-next-line func-name-mixedcase
-    function __DLT_init(
-        string memory name,
-        string memory symbol
-    ) internal onlyInitializing {
+    function __DLT_init(string memory name, string memory symbol)
+        internal
+        onlyInitializing
+    {
         __DLT_init_unchained(name, symbol);
     }
 
     // solhint-disable-next-line func-name-mixedcase
-    function __DLT_init_unchained(
-        string memory name,
-        string memory symbol
-    ) internal onlyInitializing {
+    function __DLT_init_unchained(string memory name, string memory symbol)
+        internal
+        onlyInitializing
+    {
         _name = name;
         _symbol = symbol;
     }
 
-  function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721,ERC721URIStorage) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC721, ERC721URIStorage)
+        returns (bool)
+    {
         return
             interfaceId == type(IERC165).interfaceId ||
             interfaceId == type(IERC721).interfaceId ||
-            interfaceId == type(IERC721Enumerable).interfaceId || 
+            interfaceId == type(IERC721Enumerable).interfaceId ||
             interfaceId == type(IERC721Metadata).interfaceId;
     }
 
-    
-     function onERC721Received() external pure returns (bytes4) {
+    function onERC721Received() external pure returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
@@ -119,10 +121,11 @@ mapping(uint256=>string)_tokenURIs;
     /**
      * @dev See {DLT-setApprovalForAll}.
      */
-    function setApprovalForAll(
-        address operator,
-        bool approved
-    ) public virtual override(ERC721,IERC721,IDLTUpgradeable){
+    function setApprovalForAll(address operator, bool approved)
+        public
+        virtual
+        override(ERC721, IERC721, IDLTUpgradeable)
+    {
         _setApprovalForAll(_msgSender(), operator, approved);
     }
 
@@ -241,10 +244,13 @@ mapping(uint256=>string)_tokenURIs;
         return _allowance(owner, spender, mainId, subId);
     }
 
-    function isApprovedForAll(
-        address owner,
-        address operator
-    ) public view virtual override(ERC721,IERC721,IDLTUpgradeable) returns (bool) {
+    function isApprovedForAll(address owner, address operator)
+        public
+        view
+        virtual
+        override(ERC721, IERC721, IDLTUpgradeable)
+        returns (bool)
+    {
         return _operatorApprovals[owner][operator];
     }
 
@@ -475,7 +481,7 @@ mapping(uint256=>string)_tokenURIs;
         address owner,
         address operator,
         bool approved
-    ) internal virtual override{
+    ) internal virtual override {
         require(owner != operator, "DLT: approve to caller");
         _operatorApprovals[owner][operator] = approved;
         emit ApprovalForAll(owner, operator, approved);
@@ -522,26 +528,19 @@ mapping(uint256=>string)_tokenURIs;
         _afterTokenTransfer(sender, recipient, mainId, subId, budget, "");
     }
 
-    /** @dev Creates `budget` tokens and assigns them to `account`
-     *
-     * Emits a {Transfer} event with `sender` set to the zero address.
-     *
-     * Requirements:
-     *
-     * - `account` cannot be the zero address.
-     * - `budget` cannot be zero .
-     */
-      function mintSubId(
-         address account,
+    //All function are added from here Rest of the functions are from 6960 implementation
+    function mintSubId(
+        address account,
         uint256 mainId,
         uint256 subId,
         string memory name,
-        uint256 budget,string memory _tokenURI)internal virtual{
-                  
-                    require(account != address(0), "DLT: mint to the zero address");
-     //   require(budget != 0, "DLT: mint zero budget");
-         
-           _mint(account,subId);
+        uint256 budget,
+        string memory _tokenURI
+    ) internal virtual {
+        require(account != address(0), "DLT: mint to the zero address");
+        //   require(budget != 0, "DLT: mint zero budget");
+
+        _mint(account, subId);
 
         _beforeTokenTransfer(address(0), account, mainId, subId, budget, "");
 
@@ -550,19 +549,21 @@ mapping(uint256=>string)_tokenURIs;
         emit Transfer(address(0), account, mainId, subId, budget);
 
         _afterTokenTransfer(address(0), account, mainId, subId, budget, "");
-         setTokenURI(subId,name,_tokenURI);
-        }
+        setTokenURI(subId, name, _tokenURI);
+    }
 
-      function mintMainId(
-         address account,
+    function mintMainId(
+        address account,
         uint256 mainId,
         uint256 subId,
         string memory name,
-        uint256 budget,string memory _tokenURI)internal virtual{
-            require(account != address(0), "DLT: mint to the zero address");
-   //     require(budget != 0, "DLT: mint zero budget");
-      
-           _mint(account,mainId);
+        uint256 budget,
+        string memory _tokenURI
+    ) internal virtual {
+        require(account != address(0), "DLT: mint to the zero address");
+        //     require(budget != 0, "DLT: mint zero budget");
+
+        _mint(account, mainId);
 
         _beforeTokenTransfer(address(0), account, mainId, subId, budget, "");
 
@@ -571,130 +572,184 @@ mapping(uint256=>string)_tokenURIs;
         emit Transfer(address(0), account, mainId, subId, budget);
 
         _afterTokenTransfer(address(0), account, mainId, subId, budget, "");
-         setTokenURI(mainId,name,_tokenURI);
-          
-        }
+        setTokenURI(mainId, name, _tokenURI);
+    }
 
-
-    function setTokenURI(uint256 _assetId,string memory name, string memory assetURI) internal {
-         string memory fullName = string(abi.encodePacked(name, uint2str(_assetId)));
-        string memory _assetURI=generateJSON(fullName, assetURI);
-        _tokenURIs[_assetId] =_assetURI;
+    function setTokenURI(
+        uint256 _assetId,
+        string memory name,
+        string memory assetURI
+    ) internal {
+        string memory fullName = string(
+            abi.encodePacked(name, uint2str(_assetId))
+        );
+        string memory _assetURI = generateJSON(fullName, assetURI);
+        _tokenURIs[_assetId] = _assetURI;
         _setTokenURI(_assetId, _assetURI);
     }
 
-
-
-    function generateJSON(
-        string memory name,
-        string memory image
-    ) internal pure returns (string memory) {
-        return string(
-            abi.encodePacked(
-                '{',
-                '"name": "', name, '",',
-                '"image": "', image, '"',
-                '}'
-            )
-        );
+    function generateJSON(string memory name, string memory image)
+        internal
+        pure
+        returns (string memory)
+    {
+        return
+            string(
+                abi.encodePacked(
+                    "{",
+                    '"name": "',
+                    name,
+                    '",',
+                    '"image": "',
+                    image,
+                    '"',
+                    "}"
+                )
+            );
     }
 
     // Helper function to convert uint256 to string
-function uint2str(uint256 _i) internal pure returns (string memory str) {
-    if (_i == 0) {
-        return "0";
+    function uint2str(uint256 _i) internal pure returns (string memory str) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint256 j = _i;
+        uint256 length;
+        while (j != 0) {
+            length++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(length);
+        uint256 k = length;
+        j = _i;
+        while (j != 0) {
+            bstr[--k] = bytes1(uint8(48 + (j % 10)));
+            j /= 10;
+        }
+        str = string(bstr);
     }
-    uint256 j = _i;
-    uint256 length;
-    while (j != 0) {
-        length++;
-        j /= 10;
-    }
-    bytes memory bstr = new bytes(length);
-    uint256 k = length;
-    j = _i;
-    while (j != 0) {
-        bstr[--k] = bytes1(uint8(48 + j % 10));
-        j /= 10;
-    }
-    str = string(bstr);
-}
- 
-  function tokenURI(
-        uint256 _assetId
-    ) public view override(ERC721, ERC721URIStorage) returns (string memory) {
+
+    function tokenURI(uint256 _assetId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
         return super.tokenURI(_assetId);
-    
     }
 
-
-function addMovie(address movieProducer,string memory movieName)public{
- movies[currentIndex]=Movie(movieProducer,currentIndex,movieName,0);
-    mintMainId(movieProducer,currentIndex,0,movieName,0,"");
-    movieExists[currentIndex][movieProducer]=true;
-    currentIndex++;
-  //  movieIdcounter++;
-  //  departmentIdcounter=1;
- //   departmentCount[currentIndex]=0;
+    function addMovie(address movieProducer, string memory movieName) public {
+        movies[currentIndex] = Movie(movieProducer, currentIndex, movieName, 0);
+        mintMainId(movieProducer, currentIndex, 0, movieName, 0, "");
+        movieExists[currentIndex][movieProducer] = true;
+        currentIndex++;
     }
 
+    function addDepartment(
+        address departmentManager,
+        uint256 movieId,
+        string memory departmentName
+    ) public onlyProducer(movieId) {
+        departments[movieId][currentIndex] = Departments(
+            departmentManager,
+            movieId,
+            currentIndex,
+            departmentName,
+            0
+        );
+        mintSubId(
+            departmentManager,
+            movieId,
+            currentIndex,
+            departmentName,
+            0,
+            ""
+        );
+        departmentExists[movieId][currentIndex][departmentManager] = true;
+        currentIndex++;
 
-function addDepartment(address departmentManager,uint256 movieId,string memory departmentName)public onlyProducer(movieId){
-  //   require(msg.sender==movies[movieId].producer,"Only Producer");
-   // uint256 departmentIdCounter=movieId+departmentIdcounter;
-     departments[movieId][currentIndex]=Departments(departmentManager,movieId,currentIndex,departmentName,0);
- mintSubId(departmentManager,movieId,currentIndex,departmentName,0,"");
-     departmentExists[movieId][currentIndex][departmentManager]=true;
-currentIndex++;
-  //   departmentIdCounter++;
-  //   departmentCount[movieId]++;    
-     movies[movieId].totalDepartments++;
-}
+        movies[movieId].totalDepartments++;
+    }
 
+    function fundMovie(uint256 movieId, uint256 fund)
+        public
+        onlyProducer(movieId)
+    {
+        require(movieExists[movieId][msg.sender], "Movie: Doesn't exists");
+        _balances[movieId][msg.sender][0] += fund;
+    }
 
+    mapping(uint256 => mapping(uint256 => mapping(address => bool)))
+        public departmentExists;
 
-function fundMovie(uint256 movieId,uint256 fund)public onlyProducer(movieId){
-  //  require(msg.sender==movies[movieId].producer,"Only Producer");
-    require(movieExists[movieId][msg.sender],"Movie: Doesn't exists");
-  _balances[movieId][msg.sender][0]+=fund;
-}
+    function PayMaintainance(
+        uint256 movieId,
+        address depAddress,
+        uint256 departmentId,
+        uint256 maintainance
+    ) public onlyProducer(movieId) {
+        require(movieExists[movieId][msg.sender], "Movie: Doesn't exists");
+        require(
+            departmentExists[movieId][departmentId][depAddress],
+            "Department: doesn't exists"
+        );
+        _balances[movieId][depAddress][departmentId] += maintainance;
+        _balances[movieId][msg.sender][0] -= maintainance;
+    }
 
-mapping(uint256=>mapping(uint256=>mapping(address=>bool))) public departmentExists;
+    function transferBalance(
+        uint256 movieId,
+        uint256 fromDepartmentId,
+        uint256 toDepartmentId,
+        address from,
+        address to,
+        uint256 transferValue
+    ) public onlyProducer(movieId) {
+        require(movieExists[movieId][msg.sender], "Movie: Doesn't exists");
+        require(
+            departmentExists[movieId][fromDepartmentId][from],
+            "Department: doesn't exists"
+        );
+        require(
+            departmentExists[movieId][toDepartmentId][to],
+            "Department: doesn't exists"
+        );
+        _balances[movieId][from][fromDepartmentId] -= transferValue;
+        _balances[movieId][to][toDepartmentId] += transferValue;
+    }
 
+    function removeDepartment(
+        uint256 movieId,
+        uint256 departmentId,
+        address _departmentManager
+    ) public onlyProducer(movieId) {
+        require(
+            departmentExists[movieId][departmentId][_departmentManager],
+            "Department: doesn't exists"
+        );
+        require(
+            _balances[movieId][_departmentManager][departmentId] == 0,
+            "Department:Balance is not zero"
+        );
+        delete departmentExists[movieId][departmentId][_departmentManager];
+        delete departments[movieId][departmentId];
+        movies[movieId].totalDepartments--;
+    }
 
-function PayMaintainance(uint256 movieId,address depAddress,uint256 departmentId,uint256 maintainance)public onlyProducer(movieId){
-  //   require(msg.sender==movies[movieId].producer,"Only Producer");
-      require(movieExists[movieId][msg.sender],"Movie: Doesn't exists");
-     require( departmentExists[movieId][departmentId][depAddress],"Department: doesn't exists");
-     _balances[movieId][depAddress][departmentId]+=maintainance;
-     _balances[movieId][msg.sender][0]-=maintainance;
-}
-  
-function transferBalance(uint256 movieId,uint256 fromDepartmentId,uint256 toDepartmentId,address from,address to,uint256 transferValue)public onlyProducer(movieId){
-// require(msg.sender==movies[movieId].producer,"Only Producer");
-      require(movieExists[movieId][msg.sender],"Movie: Doesn't exists");
-     require( departmentExists[movieId][fromDepartmentId][from],"Department: doesn't exists");
-          require( departmentExists[movieId][toDepartmentId][to],"Department: doesn't exists");
-     _balances[movieId][from][fromDepartmentId]-=transferValue;
-     _balances[movieId][to][toDepartmentId]+=transferValue;
-}  
+    function removeMovie(uint256 movieId, address _producer)
+        public
+        onlyProducer(movieId)
+    {
+        require(movieExists[movieId][_producer], "Movie: Doesn't exists");
+        require(
+            _balances[movieId][_producer][0] == 0,
+            "Movie:Balance Balance is not zero"
+        );
+        delete [movieId][0];
+        delete movieExists[movieId][_producer];
+    }
 
-function removeDepartment(uint256 movieId, uint256 departmentId,address _departmentManager)public onlyProducer(movieId) {
-   // require(msg.sender==movies[movieId].producer,"Only Producer");
-     require( departmentExists[movieId][departmentId][_departmentManager],"Department: doesn't exists");
-     require(_balances[movieId][_departmentManager][departmentId]==0,"Department:Balance is not zero");
-     delete departmentExists[movieId][departmentId][_departmentManager];
-     delete departments[movieId][departmentId];
-     movies[movieId].totalDepartments--;
-}
-
-function removeMovie(uint256 movieId,address _producer)public  onlyProducer(movieId){
-    //require(msg.sender==movies[movieId].producer,"only Producer");
-     require( movieExists[movieId][_producer],"Movie: Doesn't exists");
-     require(_balances[movieId][_producer][0]==0,"Movie:Balance Balance is not zero");
-     delete [movieId][0];
-     delete movieExists[movieId][_producer];
-}
+    //Allfunction included above section rest of the code remains same as given in 6960
 
     function _mint(
         address account,
@@ -704,8 +759,8 @@ function removeMovie(uint256 movieId,address _producer)public  onlyProducer(movi
     ) internal virtual {
         require(account != address(0), "DLT: mint to the zero address");
         require(budget != 0, "DLT: mint zero budget");
-         
-           _mint(account,subId);
+
+        _mint(account, subId);
 
         _beforeTokenTransfer(address(0), account, mainId, subId, budget, "");
 
@@ -715,8 +770,6 @@ function removeMovie(uint256 movieId,address _producer)public  onlyProducer(movi
 
         _afterTokenTransfer(address(0), account, mainId, subId, budget, "");
     }
-
-
 
     /**
      * @dev Destroys `budget` tokens from `account`, reducing the
@@ -809,10 +862,12 @@ function removeMovie(uint256 movieId,address _producer)public  onlyProducer(movi
         return _allowances[owner][spender][mainId][subId];
     }
 
-    function _isApprovedOrOwner(
-        address sender,
-        address spender
-    ) internal view virtual returns (bool) {
+    function _isApprovedOrOwner(address sender, address spender)
+        internal
+        view
+        virtual
+        returns (bool)
+    {
         return (sender == spender || isApprovedForAll(sender, spender));
     }
 
