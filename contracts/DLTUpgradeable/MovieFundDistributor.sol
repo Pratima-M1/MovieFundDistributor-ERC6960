@@ -35,17 +35,9 @@ contract MovieFundDistributor is
         uint256 movieId;
         uint256 departmentId;
         string departmentName;
-        uint256 noOfEmployees;
+        uint256 noOfEmployees;//right now not using this feature
     }
 
-    struct Employee {
-        address employeeAddress;
-        string employeeName;
-        uint256 movieId;
-        uint256 departmentId;
-        uint256 employeeId;
-        uint256 salary;
-    }
 
     using Strings for address;
     using Strings for uint256;
@@ -53,6 +45,9 @@ contract MovieFundDistributor is
     string private _name;
     string private _symbol;
     uint256 currentIndex = 1;
+    uint256 MOVIE_COUNTER=1;
+    uint256 DEPARTMENT_COUNTER=1;
+
 
     mapping(uint256 => Movie) public movies;
     mapping(uint256 => mapping(uint256 => Departments)) public departments;
@@ -69,10 +64,8 @@ contract MovieFundDistributor is
     mapping(uint256 => mapping(address => bool)) public movieExists;
     mapping(uint256 => mapping(uint256 => mapping(address => bool)))
         public departmentExists;
-    mapping(uint256 => mapping(uint256 => mapping(uint256 => mapping(address => Employee)))) employees;
-    mapping(uint256 => mapping(uint256 => mapping(uint256 => mapping(address => bool)))) employeeExists;
 
-    event MovieAdded(uint256 currentIndex, string movieName);
+    event MovieAdded(uint256 MOVIE_INDEX, string movieName);
     event DepartmentAdded(uint256 movieId, uint256 departmentId);
     event DepartmentRemoved(uint256 movieId, uint256 departmentId);
     event MovieRemoved(uint256 movieId);
@@ -83,24 +76,7 @@ contract MovieFundDistributor is
         uint256 fromDepartmentId,
         uint256 toDepartmentId
     );
-    event EmployeeFundTransferred(
-        address from,
-        address to,
-        uint256 fromEmployeeId,
-        uint256 toEmployeeId
-    );
-    event EmployeeAdded(
-        uint256 movieId,
-        uint256 departmentId,
-        uint256 employeeId,
-        address employee
-    );
-    event EmployeeRemoved(
-        uint256 movieId,
-        uint256 departmentId,
-        uint256 employeeId,
-        address employee
-    );
+
 
     modifier onlyProducer(uint256 movieId) {
         require(msg.sender == movies[movieId].producer, "Only Producer");
@@ -609,7 +585,7 @@ contract MovieFundDistributor is
     ) internal virtual {
         require(account != address(0), "DLT: mint to the zero address");
         //     require(budget != 0, "DLT: mint zero budget");
-
+         
         _mint(account, mainId);
 
         _beforeTokenTransfer(address(0), account, mainId, subId, budget, "");
@@ -685,83 +661,45 @@ contract MovieFundDistributor is
         return super.tokenURI(_assetId);
     }
 
-    function addMovie(address movieProducer, string memory movieName) public {
-        movies[currentIndex] = Movie(movieProducer, currentIndex, movieName, 0);
-        mintMainId(movieProducer, currentIndex, 0, movieName, 0, "");
-        movieExists[currentIndex][movieProducer] = true;
-        currentIndex++;
-        emit MovieAdded(currentIndex, movieName);
+    function addMovie(address movieProducer, string memory movieName,string memory movieImage) public {
+        uint256 MOVIE_INDEX=MOVIE_COUNTER*10;
+        movies[MOVIE_INDEX] = Movie(movieProducer, MOVIE_INDEX, movieName, 0);
+        mintMainId(movieProducer, MOVIE_INDEX, 0, movieName, 0, movieImage);
+        movieExists[MOVIE_INDEX][movieProducer] = true;
+        MOVIE_INDEX++;
+        emit MovieAdded(MOVIE_INDEX, movieName);
     }
 
     function addDepartment(
         address departmentManager,
         uint256 movieId,
-        string memory departmentName
+        string memory departmentName,
+        string memory departmentImage
     ) public onlyProducer(movieId) {
-        departments[movieId][currentIndex] = Departments(
+        uint256 DEPARTMENT_INDEX=movieId+DEPARTMENT_COUNTER;
+        departments[movieId][DEPARTMENT_INDEX] = Departments(
             departmentManager,
             movieId,
-            currentIndex,
+           DEPARTMENT_INDEX,
             departmentName,
             0
         );
         mintSubId(
             departmentManager,
             movieId,
-            currentIndex,
+           DEPARTMENT_INDEX,
             departmentName,
             0,
-            ""
+            departmentImage
         );
-        departmentExists[movieId][currentIndex][departmentManager] = true;
-        currentIndex++;
+        departmentExists[movieId][DEPARTMENT_INDEX][departmentManager] = true;
+        DEPARTMENT_INDEX++;
         movies[movieId].totalDepartments++;
-        emit DepartmentAdded(movieId, currentIndex);
+        emit DepartmentAdded(movieId,DEPARTMENT_INDEX);
     }
 
-    function addEmployee(
-        address employee,
-        string memory employeeName,
-        uint256 movieId,
-        uint256 departmentId
-    ) public {
-        require(
-            msg.sender == departments[movieId][departmentId].departmentManager,
-            "Department:only manager"
-        );
-        employees[movieId][departmentId][currentIndex][employee] = Employee(
-            employee,
-            employeeName,
-            movieId,
-            departmentId,
-            currentIndex,
-            0
-        );
-        mintSubId(employee, departmentId, currentIndex, employeeName, 0, "");
-        employeeExists[movieId][departmentId][currentIndex][employee] = true;
-        currentIndex++;
-        departments[movieId][departmentId].noOfEmployees++;
-        emit EmployeeAdded(movieId, departmentId, currentIndex, employee);
-    }
 
-    function paySalaryOfEmployee(
-        address employee,
-        uint256 movieId,
-        uint256 departmentId,
-        uint256 employeeId,
-        uint256 salary
-    ) public onlyManager(movieId, departmentId) {
-        require(
-            employeeExists[movieId][departmentId][employeeId][employee],
-            "Employee:doesn't exists"
-        );
-        require(
-            _balances[movieId][msg.sender][departmentId] >= salary,
-            "Employee:Insuffcient balance for transfer"
-        );
-        _balances[movieId][msg.sender][departmentId] -= salary;
-        _balances[departmentId][employee][employeeId] += salary;
-    }
+
 
     function fundMovie(uint256 movieId, uint256 fund)
         public
@@ -814,31 +752,7 @@ contract MovieFundDistributor is
         );
     }
 
-    function transferEmployeeBalance(
-        uint256 movieId,
-        uint256 departmentId,
-        uint256 fromEmployeeId,
-        uint256 toEmployeeId,
-        address from,
-        address to,
-        uint256 transferValue
-    ) public onlyManager(movieId, departmentId) {
-        require(
-            departmentExists[movieId][departmentId][from],
-            "Department: doesn't exists"
-        );
-        require(
-            employeeExists[movieId][departmentId][fromEmployeeId][from],
-            "Employee: doesn't exists"
-        );
-        require(
-            employeeExists[movieId][departmentId][toEmployeeId][to],
-            "Employee: doesn't exists"
-        );
-        _balances[departmentId][from][fromEmployeeId] -= transferValue;
-        _balances[departmentId][to][toEmployeeId] += transferValue;
-        emit EmployeeFundTransferred(from, to, fromEmployeeId, toEmployeeId);
-    }
+ 
 
     function removeMovie(uint256 movieId, address _producer)
         public
@@ -873,25 +787,6 @@ contract MovieFundDistributor is
         emit DepartmentRemoved(movieId, departmentId);
     }
 
-    function removeEmployee(
-        uint256 movieId,
-        uint256 departmentId,
-        uint256 employeeId,
-        address employee
-    ) public onlyManager(movieId, departmentId) {
-        require(
-            employeeExists[movieId][departmentId][employeeId][employee],
-            "Employee: Doesn't exists"
-        );
-        require(
-            _balances[departmentId][employee][employeeId] == 0,
-            "Employee: Balance is not zero"
-        );
-        delete employees[movieId][departmentId][employeeId][employee];
-        delete employeeExists[movieId][departmentId][employeeId][employee];
-        departments[movieId][departmentId].noOfEmployees--;
-        emit EmployeeRemoved(movieId, departmentId, currentIndex, employee);
-    }
 
     //Allfunction included above section rest of the code remains same as given in 6960
 
