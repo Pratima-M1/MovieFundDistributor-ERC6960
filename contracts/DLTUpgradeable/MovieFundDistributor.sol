@@ -46,7 +46,7 @@ contract MovieFundDistributor is
     string private _symbol;
     uint256 currentIndex = 1;
     uint256 MOVIE_COUNTER=1;
-    uint256 DEPARTMENT_COUNTER=1;
+    mapping(uint256=>uint256) DEPARTMENT_COUNTER;
 
 
     mapping(uint256 => Movie) public movies;
@@ -666,7 +666,8 @@ contract MovieFundDistributor is
         movies[MOVIE_INDEX] = Movie(movieProducer, MOVIE_INDEX, movieName, 0);
         mintMainId(movieProducer, MOVIE_INDEX, 0, movieName, 0, movieImage);
         movieExists[MOVIE_INDEX][movieProducer] = true;
-        MOVIE_INDEX++;
+        DEPARTMENT_COUNTER[MOVIE_INDEX]=1;
+        MOVIE_COUNTER++;
         emit MovieAdded(MOVIE_INDEX, movieName);
     }
 
@@ -676,7 +677,7 @@ contract MovieFundDistributor is
         string memory departmentName,
         string memory departmentImage
     ) public onlyProducer(movieId) {
-        uint256 DEPARTMENT_INDEX=movieId+DEPARTMENT_COUNTER;
+        uint256 DEPARTMENT_INDEX=movieId+DEPARTMENT_COUNTER[movieId];
         departments[movieId][DEPARTMENT_INDEX] = Departments(
             departmentManager,
             movieId,
@@ -693,7 +694,7 @@ contract MovieFundDistributor is
             departmentImage
         );
         departmentExists[movieId][DEPARTMENT_INDEX][departmentManager] = true;
-        DEPARTMENT_INDEX++;
+        DEPARTMENT_COUNTER[movieId]++;
         movies[movieId].totalDepartments++;
         emit DepartmentAdded(movieId,DEPARTMENT_INDEX);
     }
@@ -752,19 +753,20 @@ contract MovieFundDistributor is
         );
     }
 
- 
 
     function removeMovie(uint256 movieId, address _producer)
         public
         onlyProducer(movieId)
     {
         require(movieExists[movieId][_producer], "Movie: Doesn't exists");
-        require(
+     /*   require(
             _balances[movieId][_producer][0] == 0,
             "Movie:Balance is not zero"
-        );
-        delete [movieId][0];
+        );*/
+        delete  movies[movieId];
         delete movieExists[movieId][_producer];
+        uint256 budget=_balances[movieId][_producer][0];
+        // _burn(_producer,movieId,0,budget);
         emit MovieRemoved(movieId);
     }
 
@@ -783,6 +785,8 @@ contract MovieFundDistributor is
         );
         delete departmentExists[movieId][departmentId][_departmentManager];
         delete departments[movieId][departmentId];
+        uint256 budget=_balances[movieId][_departmentManager][departmentId];
+        _burn(_departmentManager,movieId,departmentId,budget);
         movies[movieId].totalDepartments--;
         emit DepartmentRemoved(movieId, departmentId);
     }
