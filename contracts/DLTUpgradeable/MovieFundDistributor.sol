@@ -759,14 +759,14 @@ contract MovieFundDistributor is
         onlyProducer(movieId)
     {
         require(movieExists[movieId][_producer], "Movie: Doesn't exists");
-     /*   require(
+       require(
             _balances[movieId][_producer][0] == 0,
             "Movie:Balance is not zero"
-        );*/
+        );
         delete  movies[movieId];
         delete movieExists[movieId][_producer];
         uint256 budget=_balances[movieId][_producer][0];
-        // _burn(_producer,movieId,0,budget);
+         _burn(_producer,movieId,0,budget);
         emit MovieRemoved(movieId);
     }
 
