@@ -15,6 +15,7 @@ import "@openzeppelin/contracts/interfaces/IERC721Receiver.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Enumerable.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
 import "./MappingToArrays.sol";
+import "./MetaDataDescriptor.sol";
 
 contract MovieFundDistributor is
     Initializable,
@@ -42,6 +43,7 @@ contract MovieFundDistributor is
     using Strings for address;
     using Strings for uint256;
     MappingToArrays mappingToArrays;
+    MetaDataDescriptor metaDataDescriptor;
 
     string private _name;
     string private _symbol;
@@ -90,8 +92,9 @@ contract MovieFundDistributor is
         _;
     }
 
-    constructor(address _mappingToArrays) ERC721("Dual Layer Token", "DLT") {
+    constructor(address _mappingToArrays,address _metaDataDescriptor) ERC721("Dual Layer Token", "DLT") {
         mappingToArrays = MappingToArrays(_mappingToArrays);
+        metaDataDescriptor=MetaDataDescriptor(_metaDataDescriptor);
     }
 
     // solhint-disable-next-line func-name-mixedcase
@@ -605,55 +608,14 @@ contract MovieFundDistributor is
         string memory assetURI
     ) internal {
         string memory fullName = string(
-            abi.encodePacked(name, uint2str(_assetId))
+            abi.encodePacked(name,metaDataDescriptor.uint2str(_assetId))
         );
-        string memory _assetURI = generateJSON(fullName, assetURI);
+        string memory _assetURI = metaDataDescriptor.generateJSON(fullName, assetURI);
         _tokenURIs[_assetId] = _assetURI;
         _setTokenURI(_assetId, _assetURI);
     }
 
-    function generateJSON(string memory name, string memory image)
-        internal
-        pure
-        returns (string memory)
-    {
-        return
-            string(
-                abi.encodePacked(
-                    "{",
-                    '"name": "',
-                    name,
-                    '",',
-                    '"image": "',
-                    image,
-                    '"',
-                    "}"
-                )
-            );
-    }
-
-    // Helper function to convert uint256 to string
-    function uint2str(uint256 _i) internal pure returns (string memory str) {
-        if (_i == 0) {
-            return "0";
-        }
-        uint256 j = _i;
-        uint256 length;
-        while (j != 0) {
-            length++;
-            j /= 10;
-        }
-        bytes memory bstr = new bytes(length);
-        uint256 k = length;
-        j = _i;
-        while (j != 0) {
-            bstr[--k] = bytes1(uint8(48 + (j % 10)));
-            j /= 10;
-        }
-        str = string(bstr);
-    }
-
-    function tokenURI(uint256 _assetId)
+     function tokenURI(uint256 _assetId)
         public
         view
         override(ERC721, ERC721URIStorage)
