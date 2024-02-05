@@ -14,6 +14,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Receiver.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Enumerable.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
+import "./MappingToArrays.sol";
 
 contract MovieFundDistributor is
     Initializable,
@@ -35,19 +36,18 @@ contract MovieFundDistributor is
         uint256 movieId;
         uint256 departmentId;
         string departmentName;
-        uint256 noOfEmployees;//right now not using this feature
+        uint256 noOfEmployees; //right now not using this feature
     }
-
 
     using Strings for address;
     using Strings for uint256;
+    MappingToArrays mappingToArrays;
 
     string private _name;
     string private _symbol;
     uint256 currentIndex = 1;
-    uint256 MOVIE_COUNTER=1;
-    mapping(uint256=>uint256) DEPARTMENT_COUNTER;
-
+    uint256 MOVIE_COUNTER = 1;
+    mapping(uint256 => uint256) DEPARTMENT_COUNTER;
 
     mapping(uint256 => Movie) public movies;
     mapping(uint256 => mapping(uint256 => Departments)) public departments;
@@ -77,7 +77,6 @@ contract MovieFundDistributor is
         uint256 toDepartmentId
     );
 
-
     modifier onlyProducer(uint256 movieId) {
         require(msg.sender == movies[movieId].producer, "Only Producer");
         _;
@@ -91,7 +90,9 @@ contract MovieFundDistributor is
         _;
     }
 
-    constructor() ERC721("Dual Layer Token", "DLT") {}
+    constructor(address _mappingToArrays) ERC721("Dual Layer Token", "DLT") {
+        mappingToArrays = MappingToArrays(_mappingToArrays);
+    }
 
     // solhint-disable-next-line func-name-mixedcase
     function __DLT_init(string memory name, string memory symbol)
@@ -585,7 +586,7 @@ contract MovieFundDistributor is
     ) internal virtual {
         require(account != address(0), "DLT: mint to the zero address");
         //     require(budget != 0, "DLT: mint zero budget");
-         
+
         _mint(account, mainId);
 
         _beforeTokenTransfer(address(0), account, mainId, subId, budget, "");
@@ -661,12 +662,16 @@ contract MovieFundDistributor is
         return super.tokenURI(_assetId);
     }
 
-    function addMovie(address movieProducer, string memory movieName,string memory movieImage) public {
-        uint256 MOVIE_INDEX=MOVIE_COUNTER*10;
+    function addMovie(
+        address movieProducer,
+        string memory movieName,
+        string memory movieImage
+    ) public {
+        uint256 MOVIE_INDEX = MOVIE_COUNTER * 10;
         movies[MOVIE_INDEX] = Movie(movieProducer, MOVIE_INDEX, movieName, 0);
         mintMainId(movieProducer, MOVIE_INDEX, 0, movieName, 0, movieImage);
         movieExists[MOVIE_INDEX][movieProducer] = true;
-        DEPARTMENT_COUNTER[MOVIE_INDEX]=1;
+        DEPARTMENT_COUNTER[MOVIE_INDEX] = 1;
         MOVIE_COUNTER++;
         emit MovieAdded(MOVIE_INDEX, movieName);
     }
@@ -677,30 +682,28 @@ contract MovieFundDistributor is
         string memory departmentName,
         string memory departmentImage
     ) public onlyProducer(movieId) {
-        uint256 DEPARTMENT_INDEX=movieId+DEPARTMENT_COUNTER[movieId];
+        uint256 DEPARTMENT_INDEX = movieId + DEPARTMENT_COUNTER[movieId];
         departments[movieId][DEPARTMENT_INDEX] = Departments(
             departmentManager,
             movieId,
-           DEPARTMENT_INDEX,
+            DEPARTMENT_INDEX,
             departmentName,
             0
         );
         mintSubId(
             departmentManager,
             movieId,
-           DEPARTMENT_INDEX,
+            DEPARTMENT_INDEX,
             departmentName,
             0,
             departmentImage
         );
+        mappingToArrays.addToMapping(movieId, DEPARTMENT_INDEX);
         departmentExists[movieId][DEPARTMENT_INDEX][departmentManager] = true;
         DEPARTMENT_COUNTER[movieId]++;
         movies[movieId].totalDepartments++;
-        emit DepartmentAdded(movieId,DEPARTMENT_INDEX);
+        emit DepartmentAdded(movieId, DEPARTMENT_INDEX);
     }
-
-
-
 
     function fundMovie(uint256 movieId, uint256 fund)
         public
@@ -717,6 +720,7 @@ contract MovieFundDistributor is
         uint256 maintainance
     ) public onlyProducer(movieId) {
         require(movieExists[movieId][msg.sender], "Movie: Doesn't exists");
+         require(_balances[movieId][msg.sender][0]!=0,"Movie:Insufficient balance");
         require(
             departmentExists[movieId][departmentId][depAddress],
             "Department: doesn't exists"
@@ -724,6 +728,27 @@ contract MovieFundDistributor is
         _balances[movieId][depAddress][departmentId] += maintainance;
         _balances[movieId][msg.sender][0] -= maintainance;
         emit MaintainceDistributed(movieId, maintainance);
+    }
+
+    function PayMaintainceToAllDepartments(
+        uint256 movieId,
+        uint256 totalMaintainance
+    ) public onlyProducer(movieId) {
+        require(movieExists[movieId][msg.sender], "Movie: Doesn't exists");
+        uint256[] memory departmentIds = mappingToArrays.getArray(movieId);
+        require(
+            _balances[movieId][msg.sender][0] >= totalMaintainance,
+            "Movie:Maintainance fee is not sufficient"
+        );
+        uint256 maintainance = totalMaintainance /
+            movies[movieId].totalDepartments;
+        for (uint256 i = 0; i < movies[movieId].totalDepartments; i++) {
+            uint256 departmentId = departmentIds[i];
+            address depAddress = departments[movieId][departmentId]
+                .departmentManager;
+            _balances[movieId][depAddress][departmentId] += maintainance;
+            _balances[movieId][msg.sender][0] -= maintainance;
+        }
     }
 
     function transferDepartmentBalance(
@@ -735,6 +760,7 @@ contract MovieFundDistributor is
         uint256 transferValue
     ) public onlyProducer(movieId) {
         require(movieExists[movieId][msg.sender], "Movie: Doesn't exists");
+        require(_balances[movieId][msg.sender][0]!=0,"Movie:Insufficient balance");
         require(
             departmentExists[movieId][fromDepartmentId][from],
             "Department: doesn't exists"
@@ -753,20 +779,19 @@ contract MovieFundDistributor is
         );
     }
 
-
     function removeMovie(uint256 movieId, address _producer)
         public
         onlyProducer(movieId)
     {
         require(movieExists[movieId][_producer], "Movie: Doesn't exists");
-       require(
+        require(
             _balances[movieId][_producer][0] == 0,
             "Movie:Balance is not zero"
         );
-        delete  movies[movieId];
+        delete movies[movieId];
         delete movieExists[movieId][_producer];
-        uint256 budget=_balances[movieId][_producer][0];
-         _burn(_producer,movieId,0,budget);
+        uint256 budget = _balances[movieId][_producer][0];
+        _burn(_producer, movieId, 0, budget);
         emit MovieRemoved(movieId);
     }
 
@@ -785,12 +810,11 @@ contract MovieFundDistributor is
         );
         delete departmentExists[movieId][departmentId][_departmentManager];
         delete departments[movieId][departmentId];
-        uint256 budget=_balances[movieId][_departmentManager][departmentId];
-        _burn(_departmentManager,movieId,departmentId,budget);
+        uint256 budget = _balances[movieId][_departmentManager][departmentId];
+        _burn(_departmentManager, movieId, departmentId, budget);
         movies[movieId].totalDepartments--;
         emit DepartmentRemoved(movieId, departmentId);
     }
-
 
     //Allfunction included above section rest of the code remains same as given in 6960
 
@@ -803,7 +827,7 @@ contract MovieFundDistributor is
         require(account != address(0), "DLT: mint to the zero address");
         require(budget != 0, "DLT: mint zero budget");
 
-        _mint(account, subId);
+        _mint(account,mainId);
 
         _beforeTokenTransfer(address(0), account, mainId, subId, budget, "");
 
@@ -848,6 +872,8 @@ contract MovieFundDistributor is
         emit Transfer(account, address(0), mainId, subId, budget);
 
         _afterTokenTransfer(account, address(0), mainId, subId, budget, "");
+
+        //  _burn(subId);
     }
 
     /**
