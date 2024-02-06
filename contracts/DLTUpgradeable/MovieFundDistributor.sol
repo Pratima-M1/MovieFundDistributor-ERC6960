@@ -659,7 +659,7 @@ contract MovieFundDistributor is
             DEPARTMENT_INDEX,
             departmentName,
             0,
-            _tokenURIs[movieId]
+            departmentImage
         );
         mappingToArrays.addToMapping(movieId, DEPARTMENT_INDEX);
         departmentExists[movieId][DEPARTMENT_INDEX][departmentManager] = true;
