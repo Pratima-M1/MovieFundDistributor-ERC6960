@@ -38,6 +38,7 @@ contract MovieFundDistributor is
         uint256 departmentId;
         string departmentName;
         uint256 noOfEmployees; //right now not using this feature
+        bool salaryPaid;
     }
 
     using Strings for address;
@@ -50,7 +51,7 @@ contract MovieFundDistributor is
     uint256 currentIndex = 1;
     uint256 MOVIE_COUNTER = 1;
     mapping(uint256 => uint256) DEPARTMENT_COUNTER;
-
+     mapping(uint256 => mapping(uint256=>uint256)) EMPLOYEE_COUNTER;
     mapping(uint256 => Movie) public movies;
     mapping(uint256 => mapping(uint256 => Departments)) public departments;
     mapping(uint256 => string) _tokenURIs;
@@ -650,7 +651,7 @@ contract MovieFundDistributor is
             movieId,
             DEPARTMENT_INDEX,
             departmentName,
-            0
+            0,true
         );
         mintSubId(
             departmentManager,
@@ -658,13 +659,51 @@ contract MovieFundDistributor is
             DEPARTMENT_INDEX,
             departmentName,
             0,
-            departmentImage
+            _tokenURIs[movieId]
         );
         mappingToArrays.addToMapping(movieId, DEPARTMENT_INDEX);
         departmentExists[movieId][DEPARTMENT_INDEX][departmentManager] = true;
         DEPARTMENT_COUNTER[movieId]++;
         movies[movieId].totalDepartments++;
+        EMPLOYEE_COUNTER[movieId][DEPARTMENT_INDEX]=1;
         emit DepartmentAdded(movieId, DEPARTMENT_INDEX);
+    }
+
+struct Employee{
+    address employeeAddress;
+    uint256 mainId;
+    uint256 departmentId;
+    uint256 employeeId;
+    uint256 salary;
+}
+
+mapping(uint256=>mapping(uint256=>mapping(uint256=>Employee)))employees;
+  //EMPLOYEE INDEX IS FROM 1 FOR EACH DEPARTMENT//how to track the paid employee salary.
+    function addEmployee(uint256 movieId,uint256 departmentId,address employeeAddress,uint256 employeeSalary)public{
+        require(msg.sender==departments[movieId][departmentId].departmentManager,"Department:not department manager");
+        uint256 EMPLOYEE_INDEX=EMPLOYEE_COUNTER[movieId][departmentId];
+        employees[movieId][departmentId][EMPLOYEE_INDEX]=Employee(employeeAddress,movieId,departmentId,EMPLOYEE_INDEX,employeeSalary);
+        EMPLOYEE_COUNTER[movieId][departmentId]++;
+        departments[movieId][departmentId].noOfEmployees++;
+    }
+
+    function addEmployeesalary(uint256 movieId,uint256 departmentId)public{
+          require(msg.sender==departments[movieId][departmentId].departmentManager,"Department:not allowed");
+          require(!departments[movieId][departmentId].salaryPaid,"Department: salary is paid");
+          require(
+            departmentExists[movieId][departmentId][msg.sender],
+            "Department: doesn't exists"
+        );
+        uint256 totalEmployees=departments[movieId][departmentId].noOfEmployees;
+        for (uint256 i = 1; i <= totalEmployees; i++) {
+            address employeeAddress = employees[movieId][departmentId]
+                [i].employeeAddress;
+                uint256 employeeSalary = employees[movieId][departmentId]
+                [i].salary;
+                 require(_balances[movieId][msg.sender][departmentId]>=employeeSalary,"Department:Insufficient Balance");
+            safeTransferFrom(msg.sender,employeeAddress,movieId,departmentId,employeeSalary);
+        }
+        departments[movieId][departmentId].salaryPaid=true;
     }
 
     function fundMovie(uint256 movieId, uint256 fund)
@@ -690,6 +729,7 @@ contract MovieFundDistributor is
         _balances[movieId][depAddress][departmentId] += maintainance;
         _balances[movieId][msg.sender][0] -= maintainance;
         emit MaintainceDistributed(movieId, maintainance);
+        departments[movieId][departmentId].salaryPaid=false;
     }
 
     function PayMaintainceToAllDepartments(
@@ -710,6 +750,7 @@ contract MovieFundDistributor is
                 .departmentManager;
             _balances[movieId][depAddress][departmentId] += maintainance;
             _balances[movieId][msg.sender][0] -= maintainance;
+             departments[movieId][departmentId].salaryPaid=false;
         }
     }
 
