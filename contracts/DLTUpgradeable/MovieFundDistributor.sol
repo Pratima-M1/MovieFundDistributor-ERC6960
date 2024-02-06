@@ -41,6 +41,14 @@ contract MovieFundDistributor is
         bool salaryPaid;
     }
 
+    struct Employee{
+    address employeeAddress;
+    uint256 mainId;
+    uint256 departmentId;
+    uint256 employeeId;
+    uint256 salary;
+}
+
     using Strings for address;
     using Strings for uint256;
     MappingToArrays mappingToArrays;
@@ -67,6 +75,7 @@ contract MovieFundDistributor is
     mapping(uint256 => mapping(address => bool)) public movieExists;
     mapping(uint256 => mapping(uint256 => mapping(address => bool)))
         public departmentExists;
+    mapping(uint256=>mapping(uint256=>mapping(uint256=>Employee)))employees;
 
     event MovieAdded(uint256 MOVIE_INDEX, string movieName);
     event DepartmentAdded(uint256 movieId, uint256 departmentId);
@@ -669,15 +678,7 @@ contract MovieFundDistributor is
         emit DepartmentAdded(movieId, DEPARTMENT_INDEX);
     }
 
-struct Employee{
-    address employeeAddress;
-    uint256 mainId;
-    uint256 departmentId;
-    uint256 employeeId;
-    uint256 salary;
-}
 
-mapping(uint256=>mapping(uint256=>mapping(uint256=>Employee)))employees;
   //EMPLOYEE INDEX IS FROM 1 FOR EACH DEPARTMENT//how to track the paid employee salary.
     function addEmployee(uint256 movieId,uint256 departmentId,address employeeAddress,uint256 employeeSalary)public{
         require(msg.sender==departments[movieId][departmentId].departmentManager,"Department:not department manager");
