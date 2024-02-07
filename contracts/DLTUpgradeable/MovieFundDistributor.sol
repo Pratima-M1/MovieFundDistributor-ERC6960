@@ -76,6 +76,7 @@ contract MovieFundDistributor is
     mapping(uint256 => mapping(uint256 => mapping(address => bool)))
         public departmentExists;
     mapping(uint256=>mapping(uint256=>mapping(uint256=>Employee)))employees;
+    mapping(uint256=>mapping(uint256=>mapping(uint256=>bool)))employeeExists;
 
     event MovieAdded(uint256 MOVIE_INDEX, string movieName);
     event DepartmentAdded(uint256 movieId, uint256 departmentId);
@@ -687,39 +688,7 @@ contract MovieFundDistributor is
          mappingToArrays.addToTwoKeyMapping(movieId,departmentId,EMPLOYEE_INDEX);
         EMPLOYEE_COUNTER[movieId][departmentId]++;
         departments[movieId][departmentId].noOfEmployees++;
-    }
-
-    function addEmployeesalary(uint256 movieId,uint256 departmentId)public{
-          require(msg.sender==departments[movieId][departmentId].departmentManager,"Department:not allowed");
-            require(
-            departmentExists[movieId][departmentId][msg.sender],
-            "Department: doesn't exists"
-        );
-          require(!departments[movieId][departmentId].salaryPaid,"Department: salary is paid");
-        
-        uint256 totalEmployees=departments[movieId][departmentId].noOfEmployees;
-         uint256[] memory employeeIds = mappingToArrays.getTwoKeyArray(movieId,departmentId);
-        for (uint256 i = 0; i < totalEmployees; i++) {
-            uint256 employeeId=employeeIds[i];
-            address employeeAddress = employees[movieId][departmentId]
-                [employeeId].employeeAddress;
-                uint256 employeeSalary = employees[movieId][departmentId]
-                [employeeId].salary;
-                 require(_balances[movieId][msg.sender][departmentId]>=employeeSalary,"Department:Insufficient Balance");
-            safeTransferFrom(msg.sender,employeeAddress,movieId,departmentId,employeeSalary);
-        }
-        departments[movieId][departmentId].salaryPaid=true;
-    }
-
-
-    function removeEmployee(uint256 movieId,uint256 departmentId,uint256 employeeId,address employeeAddress)public{
-        require(msg.sender==departments[movieId][departmentId].departmentManager,"Department:not allowed");
-        require(_balances[movieId][employeeAddress][departmentId]==0,"Employee:balance is not zero");
-        //since all employee ids are continous logic to update all employee id
-        //we have to update _balance array
-        delete employees[movieId][departmentId][employeeId];
-        departments[movieId][departmentId].noOfEmployees--;
-        mappingToArrays.removeFromTwoKeyMapping(movieId,departmentId,employeeId);
+        employeeExists[movieId][departmentId][EMPLOYEE_INDEX]=true;
     }
 
     function fundMovie(uint256 movieId, uint256 fund)
@@ -798,6 +767,51 @@ contract MovieFundDistributor is
         );
     }
 
+        function transferEmployeeBalance(
+        uint256 movieId,
+        uint256 departmentId,
+        uint256 fromEmployeeId,
+        uint256 toEmployeeId,
+        address from,
+        address to,
+        uint256 transferValue
+    ) public onlyProducer(movieId) {
+        require(movieExists[movieId][msg.sender], "Movie: Doesn't exists");
+        //to check if the employees from same movie and same department add logic
+        require(employeeExists[movieId][departmentId][fromEmployeeId],"Employee:doesn't exists");
+        require(employeeExists[movieId][departmentId][toEmployeeId],"Employee:doesn't exists");
+        _balances[movieId][from][fromEmployeeId] -= transferValue;
+        _balances[movieId][to][toEmployeeId] += transferValue;
+        emit DepartmentFundTransferred(
+            from,
+            to,
+            fromEmployeeId,
+            toEmployeeId
+        );
+    }
+
+     function addEmployeesalary(uint256 movieId,uint256 departmentId)public{
+          require(msg.sender==departments[movieId][departmentId].departmentManager,"Department:not allowed");
+            require(
+            departmentExists[movieId][departmentId][msg.sender],
+            "Department: doesn't exists"
+        );
+          require(!departments[movieId][departmentId].salaryPaid,"Department: salary is paid");
+        
+        uint256 totalEmployees=departments[movieId][departmentId].noOfEmployees;
+         uint256[] memory employeeIds = mappingToArrays.getTwoKeyArray(movieId,departmentId);
+        for (uint256 i = 0; i < totalEmployees; i++) {
+            uint256 employeeId=employeeIds[i];
+            address employeeAddress = employees[movieId][departmentId]
+                [employeeId].employeeAddress;
+                uint256 employeeSalary = employees[movieId][departmentId]
+                [employeeId].salary;
+                 require(_balances[movieId][msg.sender][departmentId]>=employeeSalary,"Department:Insufficient Balance");
+            safeTransferFrom(msg.sender,employeeAddress,movieId,departmentId,employeeSalary);
+        }
+        departments[movieId][departmentId].salaryPaid=true;
+    }
+
     function removeMovie(uint256 movieId, address _producer)
         public
         onlyProducer(movieId)
@@ -835,6 +849,18 @@ contract MovieFundDistributor is
         movies[movieId].totalDepartments--;
         emit DepartmentRemoved(movieId, departmentId);
     }
+
+       function removeEmployee(uint256 movieId,uint256 departmentId,uint256 employeeId,address employeeAddress)public{
+        require(msg.sender==departments[movieId][departmentId].departmentManager,"Department:not allowed");
+        require(_balances[movieId][employeeAddress][departmentId]==0,"Employee:balance is not zero");
+        //since all employee ids are continous logic to update all employee id
+        //we have to update _balance array
+        delete employees[movieId][departmentId][employeeId];
+        departments[movieId][departmentId].noOfEmployees--;
+        mappingToArrays.removeFromTwoKeyMapping(movieId,departmentId,employeeId);
+         employeeExists[movieId][departmentId][employeeId]=false;
+    }
+
 
     //Allfunction included above section rest of the code remains same as given in 6960
 
